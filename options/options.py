@@ -126,12 +126,12 @@ class InjectionAndEvaluationOptions:
         self.initialize()
 
     def initialize(self):
-        self.parser.add_argument("--seed", default=0, type=int)
+        self.parser.add_argument("--seed", default=34, type=int)
         self.parser.add_argument("--rand_select", default="Yes", type=str)
 
-        self.parser.add_argument("--max_num", default=1000, type=int)
+        self.parser.add_argument("--max_num", default=10000, type=int)
         self.parser.add_argument("--batch_size", default=10, type=int)
-        self.parser.add_argument("--num_workers", default=2, type=int)
+        self.parser.add_argument("--num_workers", default=4, type=int)
 
         self.parser.add_argument("--seq_weight", default=0.1, type=float)
         self.parser.add_argument("--idvec_weight", default=1.0, type=float)

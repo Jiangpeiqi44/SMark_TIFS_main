@@ -435,7 +435,7 @@ class Inject:
         #     seq = laplace
         # else:
         #     raise ValueError('Unexpected Generator training mode {}'.format(self.opts.genloss_mode))
-
+        self.opts.output_dir = './infer_data'
         self.seq_path = os.path.join(self.opts.output_dir, "sequence.txt")
         self.control_seq_path = os.path.join(
             self.opts.output_dir, "control_sequence.txt"
@@ -688,262 +688,81 @@ class Inject:
                         return_latents=True,
                     )
                     img_rec = 1 * img_rec + 1 * img_org  # + 0.8*img_rec
-
                     
-                    """这里再生成经过DF后的含水印图像"""
                     if False:
-                    # if True:
-                        device = self.opts.device
-                        # print((torch.nn.functional.interpolate(torch.clamp(self.starnorm(img_rec), -1., 1.), size=(1024,1024) , mode='bilinear')).shape)
-                        # latents = get_latents(self.net, self.starnorm(img_rec), is_cars)[0]
-                        # latents = get_latents(self.net, (torch.nn.functional.interpolate(self.starnorm(img_rec), size=(1024,1024) , mode='bilinear')), is_cars)[0]
-                        # print(latents.shape)
-                        imgs, _ = generator(
-                            [latent_codes[i].unsqueeze(0).to(device)],
-                            None,
-                            input_is_latent=True,
-                            randomize_noise=False,
-                            return_latents=True,
-                        )
-                        res = torch.nn.functional.interpolate(
-                            img_rec,
-                            size=(256,256),
-                            mode="bilinear",
-                        ) - torch.nn.functional.interpolate(
-                            torch.clamp((imgs), -1.0, 1.0),
-                            size=(256,256),
-                            mode="bilinear",
+                        """开始Evaluate"""
+                        # img_rec -> pos
+                        # img_rec_df -> neg
+                        label_input_pos = np.ones(img_rec.shape[0])
+                        label_all.extend(label_input_pos)
+                        label_input_neg = np.zeros(img_rec_df.shape[0])
+                        label_all.extend(label_input_neg)
+
+                        """首先是Pos"""
+
+                        # Image.fromarray(np.array(tensor2img(img_org[0]))).save('ori.png')
+                        # img_rec = self.noiser.test(img_rec,img_org,per_type)
+                        img_rec = self.noiser.test((img_rec), (img_org), per_type)
+                        style_vectors_rec, _ = self.net.get_style_vectors(img_rec, onehot)
+                        style_codes_rec = self.net.cal_style_codes(style_vectors_rec)
+                        pred_input = calculatie_correlation_multi_e4s(
+                            style_codes_rec[:, MASK_C_SELECT, GAN_LAYER_SELECT, :],
+                            seqs.detach().cpu().numpy(),
+                            self.opts.peak_threshold,
                         )
 
-                        # produce initial editing image
-                        # edit_latents = editor.apply_interfacegan(latent_codes[i].to(device), interfacegan_direction, factor_range=np.linspace(-3, 3, num=40))
-                        if edit_attribute == "inversion":
-                            img_edit = imgs
-                            edit_latents = latent_codes[i].unsqueeze(0).to(device)
-                        elif edit_attribute == "age" or edit_attribute == "smile":
-                            img_edit, edit_latents = editor.apply_interfacegan(
-                                latent_codes[i].unsqueeze(0).to(device),
-                                edit_direction,
-                                factor=edit_degree,
-                            )
-                        else:
-                            img_edit, edit_latents = editor.apply_ganspace(
-                                latent_codes[i].unsqueeze(0).to(device),
-                                ganspace_pca,
-                                [edit_direction],
-                            )
-
-                        # align the distortion map
-                        img_edit = torch.nn.functional.interpolate(
-                            torch.clamp(img_edit, -1.0, 1.0),
-                            size=(256, 256),
-                            mode="bilinear",
-                        )
-                        # print(img_edit.shape)
-                        res_align = self.net_hfgi.grid_align(
-                            torch.cat((res, img_edit), 1)
-                        )
-
-                        # consultation fusion
-                        conditions = self.net_hfgi.residue(res_align)
-                        imgs, _ = generator(
-                            [edit_latents],
-                            conditions,
-                            input_is_latent=True,
-                            randomize_noise=False,
-                            return_latents=True,
-                        )
-                        if is_cars:
-                            imgs = imgs[:, :, 64:448, :]
-
-                        # save images
-                        img_rec_df = torch.nn.functional.interpolate(
-                            (imgs), size=(1024,1024), mode="bilinear"
-                        )
-                    
-                    # 生成随机打乱的ref图像
-                    # if np.random.rand() < 0.5:
-                    # if True:
-                    if False:
-                        shuffle_index = torch.tensor(
-                            ahead_one(list(range(img_org.shape[0])))
-                        )
-                        ref_images = img_org[shuffle_index]
-                        img_rec_df = self.starnorm(
-                            self.deepfake(
-                                self.denorm(torch.nn.functional.interpolate(
-                            ref_images.detach(), size=(256,256), mode="bilinear"
-                        )), self.denorm(torch.nn.functional.interpolate(
-                            img_rec, size=(256,256), mode="bilinear"
-                        ))
-                            )
-                        )
-                        img_rec_df = torch.nn.functional.interpolate(
-                            img_rec_df, size=(1024,1024), mode="bilinear"
-                        )
-                    if False:
-                    # if True:
-                        shuffle_index = torch.tensor(
-                            ahead_one(list(range(img_org.shape[0])))
-                        )
-                        ref_images = img_org[shuffle_index]
-                        img_rec_df = self.starnorm(
-                            self.image_editor.edit_image_by_prompt(
-                                self.denorm(img_rec), self.denorm(ref_images.detach())
-                            )
-                        )
-                    if True:
-                    # if False:
-                    
-                        """Star"""
-                        c_org = torch.FloatTensor([[0] * 5] * img_rec.shape[0])
-                        # img_rec_df = self.starnorm(
-                        #     self.star_model.run(
-                        #         self.denorm(torch.nn.functional.interpolate(
-                        #     img_rec, size=(256,256), mode="bilinear"
-                        # )), self.denorm(c_org)
-                        #     )
-                        # )
-                        img_rec_df = self.starnorm(self.star_model.test(self.denorm(torch.nn.functional.interpolate(
-                            img_rec, size=(256,256), mode="bilinear"
-                        )), c_org, 4))
-                        img_rec_df = torch.nn.functional.interpolate(
-                            img_rec_df, size=(1024,1024), mode="bilinear"
-                        )
-                    """开始Evaluate"""
-                    # img_rec -> pos
-                    # img_rec_df -> neg
-                    label_input_pos = np.ones(img_rec.shape[0])
-                    label_all.extend(label_input_pos)
-                    label_input_neg = np.zeros(img_rec_df.shape[0])
-                    label_all.extend(label_input_neg)
-
-                    """首先是Pos"""
-
-                    # Image.fromarray(np.array(tensor2img(img_org[0]))).save('ori.png')
-                    # img_rec = self.noiser.test(img_rec,img_org,per_type)
-                    img_rec = self.noiser.test((img_rec), (img_org), per_type)
-                    # Image.fromarray(np.array(tensor2img(img_rec[0]))).save(f'{per_type}.png')
-                    # continue
-                    # msg_rec = self.decoder(img_rec)
-                    # msg_rec_semi =  self.decoder_semi(img_rec)
-                    # seq_robust_list = []
-                    # seq_semi_list = []
-                    # decoded_rounded = msg_rec.detach().cpu().numpy().round().clip(0, 1)
-                    # decoded_rounded_semi = msg_rec_semi.detach().cpu().numpy().round().clip(0, 1)
-                    # CHDecode = [self.ChaDecodeNK(decoded_rounded[i]) for i in range(decoded_rounded.shape[0])]
-                    # for i in range(img_rec.shape[0]):
-                    #     bitwise_avg_err = np.sum(np.abs(decoded_rounded[i] - self.random_states_robust[i])) / (decoded_rounded[i].shape[0])     #这里 bs=1
-                    #     BER_list.append(bitwise_avg_err)
-                    #     bitwise_avg_err_semi = np.sum(np.abs(decoded_rounded_semi[i] - self.states[i])) / (decoded_rounded_semi[i].shape[0])     #这里 bs=1
-                    #     BER_semi_list.append(bitwise_avg_err_semi)
-                    #     # random_state = np.ones(shape=self.states.shape[1]) if sum(decoded_rounded[i]) == 0 else decoded_rounded[i]  # 排除全0项
-                    #     # seq_robust = max_len_seq(nbits=9, state=random_state)[0]*2.0 - 1.0
-                    #     # seq_robust = np.insert(seq_robust, -1, 0)
-                    #     # seq_robust_list.append(seq_robust)
-                    #     '''semi'''
-                    #     random_state = np.ones(shape=self.states.shape[1]) if sum(decoded_rounded_semi[i]) == 0 else decoded_rounded_semi[i]  # 排除全0项
-                    #     seq_semi = max_len_seq(nbits=9, state=random_state)[0]*2.0 - 1.0
-                    #     seq_semi = np.insert(seq_semi, -1, 0)
-                    #     seq_semi_list.append(seq_semi)
-                    # id_input = self.facenet(alignment(img_rec))
-                    # id_input_norm = l2_norm(id_input)
-                    # # seq_robust_list = np.array(seq_robust_list)
-                    # seq_semi_list = np.array(seq_semi_list)
-                    style_vectors_rec, _ = self.net.get_style_vectors(img_rec, onehot)
-                    style_codes_rec = self.net.cal_style_codes(style_vectors_rec)
-                    pred_input = calculatie_correlation_multi_e4s(
-                        style_codes_rec[:, MASK_C_SELECT, GAN_LAYER_SELECT, :],
-                        seqs.detach().cpu().numpy(),
-                        self.opts.peak_threshold,
-                    )
-
-                    """新增对PAPR的计算"""
-                    for MASK_C, GAN_LAYER, SEQ_GAMMA in WM_layer_list:
-                        tmp = 0
-                        for img_idx in range(batch_size):
-                            rec_acorr = np.correlate(
-                                style_codes_rec[img_idx, MASK_C, GAN_LAYER, :]
-                                .cpu()
-                                .detach()
-                                .numpy(),
-                                seqs_cpu[img_idx],
-                                "full",
-                            )
-                            rec_acorr_PAPR = cal_PAPR(rec_acorr)
-                            tmp += rec_acorr_PAPR
-                        self.PAPR_dict[f"C{MASK_C}_L{GAN_LAYER}"] += tmp
-                    self.total_num+=batch_size
+                        """新增对PAPR的计算"""
+                        for MASK_C, GAN_LAYER, SEQ_GAMMA in WM_layer_list:
+                            tmp = 0
+                            for img_idx in range(batch_size):
+                                rec_acorr = np.correlate(
+                                    style_codes_rec[img_idx, MASK_C, GAN_LAYER, :]
+                                    .cpu()
+                                    .detach()
+                                    .numpy(),
+                                    seqs_cpu[img_idx],
+                                    "full",
+                                )
+                                rec_acorr_PAPR = cal_PAPR(rec_acorr)
+                                tmp += rec_acorr_PAPR
+                            self.PAPR_dict[f"C{MASK_C}_L{GAN_LAYER}"] += tmp
+                        self.total_num+=batch_size
 
 
-                    # # pred_input_self_corr = calculatie_correlation_multi(id_input_norm, seq_robust_list, self.opts.peak_threshold)
-                    # pred_input_semi_corr = calculatie_correlation_multi(id_input_norm, seq_semi_list, self.opts.peak_threshold)
-                    pred_all.extend(pred_input)
-                    # # pred_self_corr_all.extend(pred_input_self_corr)
-                    # pred_semi_corr_all.extend(pred_input_semi_corr)
-                    # '''然后是Neg'''
-                    # # img_rec_df = self.noiser.test(img_rec_df,img_rec_df,per_type)
-                    img_rec_df = self.noiser.test((img_rec_df), (img_rec_df), per_type)
-                    # msg_rec = self.decoder(img_rec_df)
-                    # msg_rec_semi =  self.decoder_semi(img_rec_df)
-                    # seq_robust_list = []
-                    # seq_semi_list = []
+                        pred_all.extend(pred_input)
 
-                    # decoded_rounded = msg_rec.detach().cpu().numpy().round().clip(0, 1)
-                    # decoded_rounded_semi = msg_rec_semi.detach().cpu().numpy().round().clip(0, 1)
-                    # # CHDecode = [self.ChaDecodeNK(decoded_rounded[i]) for i in range(decoded_rounded.shape[0])]
-                    # for i in range(img_rec_df.shape[0]):
-                    #     bitwise_avg_err = np.sum(np.abs(decoded_rounded[i] - self.random_states_robust[i])) / (decoded_rounded[i].shape[0])     #这里 bs=1
-                    #     BER_list.append(bitwise_avg_err)
-                    #     bitwise_avg_err_semi = np.sum(np.abs(decoded_rounded_semi[i] - self.states[i])) / (decoded_rounded_semi[i].shape[0])     #这里 bs=1
-                    #     BER_semi_list.append(bitwise_avg_err_semi)
-                    #     # random_state = np.ones(shape=self.states.shape[1]) if sum(decoded_rounded[i]) == 0 else decoded_rounded[i]  # 排除全0项
-                    #     # seq_robust = max_len_seq(nbits=9, state=random_state)[0]*2.0 - 1.0
-                    #     # seq_robust = np.insert(seq_robust, -1, 0)
-                    #     # seq_robust_list.append(seq_robust)
-                    #     '''semi'''
-                    #     random_state = np.ones(shape=self.states.shape[1]) if sum(decoded_rounded_semi[i]) == 0 else decoded_rounded_semi[i]  # 排除全0项
-                    #     seq_semi = max_len_seq(nbits=9, state=random_state)[0]*2.0 - 1.0
-                    #     seq_semi = np.insert(seq_semi, -1, 0)
-                    #     seq_semi_list.append(seq_semi)
-                    # id_input = self.facenet(alignment(img_rec_df))
-                    # id_input_norm = l2_norm(id_input)
-                    # seq_robust_list = np.array(seq_robust_list)
-                    # seq_semi_list = np.array(seq_semi_list)
-                    style_vectors_rec, _ = self.net.get_style_vectors(
-                        img_rec_df, onehot
-                    )
-                    style_codes_rec = self.net.cal_style_codes(style_vectors_rec)
-                    """新增对PAPR的计算"""
-                    for MASK_C, GAN_LAYER, SEQ_GAMMA in WM_layer_list:
-                        tmp = 0
-                        for img_idx in range(batch_size):
-                            rec_acorr = np.correlate(
-                                style_codes_rec[img_idx, MASK_C, GAN_LAYER, :]
-                                .cpu()
-                                .detach()
-                                .numpy(),
-                                seqs_cpu[img_idx],
-                                "full",
-                            )
-                            rec_acorr_PAPR = cal_PAPR(rec_acorr)
-                            tmp += rec_acorr_PAPR
-                        self.PAPR_DF_dict[f"C{MASK_C}_L{GAN_LAYER}"] += tmp
+                        img_rec_df = self.noiser.test((img_rec_df), (img_rec_df), per_type)
 
-                    pred_input = calculatie_correlation_multi_e4s(
-                        style_codes_rec[:, MASK_C_SELECT, GAN_LAYER_SELECT, :],
-                        seqs.detach().cpu().numpy(),
-                        self.opts.peak_threshold,
-                    )
-                    # pred_input_self_corr = calculatie_correlation_multi(id_input_norm, seq_robust_list, self.opts.peak_threshold)
-                    # pred_input_semi_corr = calculatie_correlation_multi(id_input_norm, seq_semi_list, self.opts.peak_threshold)
-                    pred_all.extend(pred_input)
-                    # pred_self_corr_all.extend(pred_input_self_corr)
-                    # pred_semi_corr_all.extend(pred_input_semi_corr)
+                        style_vectors_rec, _ = self.net.get_style_vectors(
+                            img_rec_df, onehot
+                        )
+                        style_codes_rec = self.net.cal_style_codes(style_vectors_rec)
+                        """新增对PAPR的计算"""
+                        for MASK_C, GAN_LAYER, SEQ_GAMMA in WM_layer_list:
+                            tmp = 0
+                            for img_idx in range(batch_size):
+                                rec_acorr = np.correlate(
+                                    style_codes_rec[img_idx, MASK_C, GAN_LAYER, :]
+                                    .cpu()
+                                    .detach()
+                                    .numpy(),
+                                    seqs_cpu[img_idx],
+                                    "full",
+                                )
+                                rec_acorr_PAPR = cal_PAPR(rec_acorr)
+                                tmp += rec_acorr_PAPR
+                            self.PAPR_DF_dict[f"C{MASK_C}_L{GAN_LAYER}"] += tmp
+
+                        pred_input = calculatie_correlation_multi_e4s(
+                            style_codes_rec[:, MASK_C_SELECT, GAN_LAYER_SELECT, :],
+                            seqs.detach().cpu().numpy(),
+                            self.opts.peak_threshold,
+                        )
+                        pred_all.extend(pred_input)
 
                     img_rec = self.denorm(img_rec)
                     img_org = self.denorm(img_org)
-                    img_rec_df = self.denorm(img_rec_df)
+                        # img_rec_df = self.denorm(img_rec_df)
 
                 for i in range(input_batch[0].shape[0]):
                     '''这里保存一下注入的seqs和对应图像名dict'''
@@ -960,31 +779,31 @@ class Inject:
                     img_output = tensor2img(img_rec[i])
                     # if False:
                     if True:
-                        img_output_df = tensor2img(img_rec_df[i])
+                        # img_output_df = tensor2img(img_rec_df[i])
                         img_name = base_name[i]
-                        # ori
-                        # Image.fromarray(np.array(img_input)).save(
-                        #     os.path.join(
-                        #         imgin_dir,
-                        #         os.path.basename(img_name)+".png",
-                        #     )
-                        # )
-                        # # wm
-                        # Image.fromarray(np.array(img_output)).save(
-                        #     os.path.join(
-                        #         imgout_dir,
-                        #         os.path.basename(img_name)+".png",
-                        #     )
-                        # )
-                        # # delta
-                        # Image.fromarray(
-                        #     abs(np.array(img_output) - np.array(img_input))
-                        # ).save(
-                        #     os.path.join(
-                        #         delta_dir,
-                        #         os.path.basename(img_name)+".png",
-                        #     )
-                        # )
+                        '''ori'''
+                        Image.fromarray(np.array(img_input)).save(
+                            os.path.join(
+                                imgin_dir,
+                                os.path.basename(img_name)+".png",
+                            )
+                        )
+                        # wm
+                        Image.fromarray(np.array(img_output)).save(
+                            os.path.join(
+                                imgout_dir,
+                                os.path.basename(img_name)+".png",
+                            )
+                        )
+                        # delta
+                        Image.fromarray(
+                            abs(np.array(img_output) - np.array(img_input))
+                        ).save(
+                            os.path.join(
+                                delta_dir,
+                                os.path.basename(img_name)+".png",
+                            )
+                        )
                         # wm+fake
                         # Image.fromarray(np.array(img_output_df)).save(
                         #     os.path.join(
@@ -1008,12 +827,12 @@ class Inject:
             delta_PAPR_dict = {}
             for MASK_C, GAN_LAYER, SEQ_GAMMA in WM_layer_list:
                 self.PAPR_dict[f"C{MASK_C}_L{GAN_LAYER}"] = self.PAPR_dict[f"C{MASK_C}_L{GAN_LAYER}"]/self.total_num
-                self.PAPR_DF_dict[f"C{MASK_C}_L{GAN_LAYER}"] = self.PAPR_DF_dict[f"C{MASK_C}_L{GAN_LAYER}"]/self.total_num
+                # self.PAPR_DF_dict[f"C{MASK_C}_L{GAN_LAYER}"] = self.PAPR_DF_dict[f"C{MASK_C}_L{GAN_LAYER}"]/self.total_num
                 delta_PAPR_dict[f"C{MASK_C}_L{GAN_LAYER}"] = self.PAPR_dict[f"C{MASK_C}_L{GAN_LAYER}"]-self.PAPR_DF_dict[f"C{MASK_C}_L{GAN_LAYER}"]
 
             plot_heatmap(self.PAPR_dict, "WM_PAPR_heatmap.png")
-            plot_heatmap(self.PAPR_DF_dict, "WMDF_PAPR_heatmap.png")
-            plot_heatmap(delta_PAPR_dict, "delta_PAPR_heatmap.png")
+            # plot_heatmap(self.PAPR_DF_dict, "WMDF_PAPR_heatmap.png")
+            # plot_heatmap(delta_PAPR_dict, "delta_PAPR_heatmap.png")
 
             avg_PSNR = psnr_sum / self.global_step
             avg_SSIM = ssim_sum / self.global_step
