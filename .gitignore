@@ -1,0 +1,16 @@
+data/ 
+
+out/
+e4s/
+HFGI/
+SimSwap/
+StarGAN/
+DiffFace/
+saved_models
+*.png
+*.jpg
+*.zip
+*.tar
+*.pth
+*.pt
+experiment/

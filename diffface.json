@@ -1,0 +1,1 @@
+{"batch_size": 1, "skip_timesteps": 25, "ddim": false, "timestep_respacing": "100", "enforce_background": true, "aug_num": 8, "seed": 404, "gpu_id": 0, "output_path": "output", "output_file": "output.png", "iterations_num": 1, "masking_threshold": 30}

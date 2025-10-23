@@ -1,0 +1,1 @@
+# StyleMark Fine-Grained Proactive Deepfake Defense via Style-Based Watermarking
