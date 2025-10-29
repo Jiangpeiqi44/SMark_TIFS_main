@@ -326,14 +326,6 @@ class Inject:
         self.opts.device = torch.device("cuda" if torch.cuda.is_available else "cpu")
         logging.info("[*]Running on device: {}".format(self.opts.device))
 
-        # args_diff = argparse.ArgumentParser()
-        # args_dict_diff = vars(args_diff)
-        # with open('diffface.json', 'rt') as f:
-        #     args_dict_diff.update(json.load(f))
-        # self.image_editor = ImageEditor(args_diff)
-
-        ckpt='HFGI/ckpt.pt'
-        self.net_hfgi, self.opts_hfgi = setup_model(ckpt, self.opts.device)
 
         self.noiser = Random_Noise(noise_config)
 
@@ -342,33 +334,6 @@ class Inject:
                 self.opts.facenet_mode, self.opts.facenet_dir
             )
         )
-        if self.opts.facenet_mode == "arcface":
-            self.facenet = Backbone(
-                input_size=112, num_layers=50, drop_ratio=0.6, mode="ir_se"
-            ).to(self.opts.device)
-            self.facenet.load_state_dict(
-                torch.load(
-                    os.path.join(self.opts.facenet_dir, "model_ir_se50.pth"),
-                    map_location=self.opts.device,
-                ),
-                strict=True,
-            )
-        elif self.opts.facenet_mode == "circularface":
-            self.facenet = Backbone(
-                input_size=112, num_layers=100, drop_ratio=0.4, mode="ir", affine=False
-            ).to(self.opts.device)
-            self.facenet.load_state_dict(
-                torch.load(
-                    os.path.join(self.opts.facenet_dir, "CurricularFace_Backbone.pth"),
-                    map_location=self.opts.device,
-                ),
-                strict=True,
-            )
-        else:
-            raise ValueError(
-                "Invalid Face Recognition Model. Must be one of [arcface, CurricularFace]"
-            )
-        self.facenet.eval()
 
         self.msg_input = []
         self.mls_input = []
@@ -414,27 +379,6 @@ class Inject:
                 res = (layer_idx + 5) // 2
                 shape = [1, 1, 2**res, 2**res]
                 self.noise_zero.append(torch.zeros(*shape).to(self.opts.device))
-        # self.att_loss = loss_functions.AttLoss(10).to(self.opts.device)
-        # ### Generate and save watermark sequence ###
-        # if self.opts.seq_type == 'mls':
-        #     state = generate_seqstate()
-        #     mls = max_len_seq(nbits=9, state=state)[0]*2.0 - 1.0
-        #     seq = np.insert(mls, -1, 0)
-        # elif self.opts.seq_type == 'gold':
-        #     state_01 = generate_seqstate()
-        #     state_02 = generate_seqstate()
-        #     mls_01 = max_len_seq(nbits=9, state=state_01)[0]
-        #     mls_02 = max_len_seq(nbits=9, state=state_02)[0]
-        #     gcs = (np.logical_xor(mls_01, mls_02) * 1) * 2.0 - 1.0
-        #     seq = np.insert(gcs, -1, 0)
-        # elif self.opts.seq_type == 'gaussian':
-        #     gaussian = np.random.normal(loc=0.0, scale=1.0, size=512)
-        #     seq = gaussian
-        # elif self.opts.seq_type == 'laplace':
-        #     laplace = np.random.laplace(loc=0, scale=1.0, size=512)
-        #     seq = laplace
-        # else:
-        #     raise ValueError('Unexpected Generator training mode {}'.format(self.opts.genloss_mode))
         self.opts.output_dir = './infer_data'
         self.seq_path = os.path.join(self.opts.output_dir, "sequence.txt")
         self.control_seq_path = os.path.join(
@@ -454,7 +398,7 @@ class Inject:
         # self.dataset = InjectionDatasetWithStarGAN(root=test_list, attr_path=self.star_config.attr_path, selected_attrs=self.star_config.selected_attrs, max_num=self.opts.max_num, size=self.opts.size)
         # TODO load custom datasets
         self.train_dataset, self.test_dataset = self.configure_datasets()
-
+        print(f"[*]Test dataset size: {len(self.test_dataset)}")
         self.dataloader = DataLoader(
             self.test_dataset,
             batch_size=self.opts.batch_size,
@@ -503,7 +447,7 @@ class Inject:
                 label_transform=transforms.Compose(
                     [FFHQ_MASK_CONVERT_TF_DETAILED, TO_TENSOR]
                 ),  # FFHQ_MASK_CONVERT_TF
-                fraction=self.e4s_config.ds_frac,
+                fraction=0.8,
                 flip_p=self.e4s_config.flip_p,
                 mode="train",
             )
@@ -515,7 +459,7 @@ class Inject:
                 label_transform=transforms.Compose(
                     [MASK_CONVERT_TF_DETAILED, TO_TENSOR]
                 ),  # MASK_CONVERT_TF_DETAILED
-                fraction=self.e4s_config.ds_frac,
+                fraction=0.8,
                 flip_p=self.e4s_config.flip_p,
             )
         if self.opts.dataset_name == "ffhq":
@@ -525,7 +469,7 @@ class Inject:
                 label_transform=transforms.Compose(
                     [FFHQ_MASK_CONVERT_TF_DETAILED, TO_TENSOR]
                 ),  # FFHQ_MASK_CONVERT_TF
-                fraction=self.e4s_config.ds_frac,
+                fraction=0.8,
                 flip_p=self.e4s_config.flip_p,
                 mode="test",
             )
@@ -537,7 +481,7 @@ class Inject:
                 label_transform=transforms.Compose(
                     [MASK_CONVERT_TF_DETAILED, TO_TENSOR]
                 ),  # MASK_CONVERT_TF
-                fraction=self.e4s_config.ds_frac,
+                fraction=0.8,
             )
 
         return train_ds, test_ds
@@ -553,37 +497,10 @@ class Inject:
         return out.clamp_(-1, 1)
 
     def running(self):
-        is_cars = False
-        generator = self.net_hfgi.decoder
-        generator.eval()
-        aligner = self.net_hfgi.grid_align
-        n_sample = len(self.test_dataset)
-        editor = latent_editor.LatentEditor(self.net_hfgi.decoder, is_cars)
-        edit_attribute = 'smile'
-        edit_degree = 1.5
-        # initial inversion
-        latent_codes = get_all_latents(self.net_hfgi, self.dataloader, is_cars=is_cars)
-
-        # set the editing operation
-        if edit_attribute == 'inversion':
-            pass
-        elif edit_attribute == 'age' or edit_attribute == 'smile':
-            interfacegan_directions = {
-                    'age': 'HFGI/editings/interfacegan_directions/age.pt',
-                    'smile': 'HFGI/editings/interfacegan_directions/smile.pt' }
-            edit_direction = torch.load(interfacegan_directions[edit_attribute]).to(self.opts.device)
-        else:
-            ganspace_pca = torch.load('HFGI/editings/ganspace_pca/ffhq_pca.pt')
-            ganspace_directions = {
-                'eyes':            (54,  7,  8,  20),
-                'beard':           (58,  7,  9,  -20),
-                'lip':             (34, 10, 11,  20) }
-            edit_direction = ganspace_directions[edit_attribute]
-
-        imgin_dir = os.path.join(self.opts.output_dir, "original_CAHQ")
-        imgout_dir = os.path.join(self.opts.output_dir, "WM_CAHQ")
-        delta_dir = os.path.join(self.opts.output_dir, "delta_CAHQ")
-        imgoutDF_dir = os.path.join(self.opts.output_dir, "DF_WM_CAHQ")
+        imgin_dir = os.path.join(self.opts.output_dir, "original_FFHQ")
+        imgout_dir = os.path.join(self.opts.output_dir, "WM_FFHQ")
+        delta_dir = os.path.join(self.opts.output_dir, "delta_FFHQ")
+        imgoutDF_dir = os.path.join(self.opts.output_dir, "DF_WM_FFHQ")
         os.makedirs(imgin_dir, exist_ok=True)
         os.makedirs(imgout_dir, exist_ok=True)
         os.makedirs(delta_dir, exist_ok=True)
@@ -669,13 +586,6 @@ class Inject:
                         style_vectors
                     )  # [B, 12, 18, 512]
 
-                    # img_rec_clean, _, __ = self.net.gen_img(
-                    #     structure_feats,
-                    #     style_codes,
-                    #     onehot,
-                    #     noise=self.noise_zero,
-                    #     return_latents=True,
-                    # )
 
                     style_codes_ADD = (
                         style_codes * self.opts.idvec_weight + self.seq_weighted
@@ -689,76 +599,6 @@ class Inject:
                     )
                     img_rec = 1 * img_rec + 1 * img_org  # + 0.8*img_rec
                     
-                    if False:
-                        """开始Evaluate"""
-                        # img_rec -> pos
-                        # img_rec_df -> neg
-                        label_input_pos = np.ones(img_rec.shape[0])
-                        label_all.extend(label_input_pos)
-                        label_input_neg = np.zeros(img_rec_df.shape[0])
-                        label_all.extend(label_input_neg)
-
-                        """首先是Pos"""
-
-                        # Image.fromarray(np.array(tensor2img(img_org[0]))).save('ori.png')
-                        # img_rec = self.noiser.test(img_rec,img_org,per_type)
-                        img_rec = self.noiser.test((img_rec), (img_org), per_type)
-                        style_vectors_rec, _ = self.net.get_style_vectors(img_rec, onehot)
-                        style_codes_rec = self.net.cal_style_codes(style_vectors_rec)
-                        pred_input = calculatie_correlation_multi_e4s(
-                            style_codes_rec[:, MASK_C_SELECT, GAN_LAYER_SELECT, :],
-                            seqs.detach().cpu().numpy(),
-                            self.opts.peak_threshold,
-                        )
-
-                        """新增对PAPR的计算"""
-                        for MASK_C, GAN_LAYER, SEQ_GAMMA in WM_layer_list:
-                            tmp = 0
-                            for img_idx in range(batch_size):
-                                rec_acorr = np.correlate(
-                                    style_codes_rec[img_idx, MASK_C, GAN_LAYER, :]
-                                    .cpu()
-                                    .detach()
-                                    .numpy(),
-                                    seqs_cpu[img_idx],
-                                    "full",
-                                )
-                                rec_acorr_PAPR = cal_PAPR(rec_acorr)
-                                tmp += rec_acorr_PAPR
-                            self.PAPR_dict[f"C{MASK_C}_L{GAN_LAYER}"] += tmp
-                        self.total_num+=batch_size
-
-
-                        pred_all.extend(pred_input)
-
-                        img_rec_df = self.noiser.test((img_rec_df), (img_rec_df), per_type)
-
-                        style_vectors_rec, _ = self.net.get_style_vectors(
-                            img_rec_df, onehot
-                        )
-                        style_codes_rec = self.net.cal_style_codes(style_vectors_rec)
-                        """新增对PAPR的计算"""
-                        for MASK_C, GAN_LAYER, SEQ_GAMMA in WM_layer_list:
-                            tmp = 0
-                            for img_idx in range(batch_size):
-                                rec_acorr = np.correlate(
-                                    style_codes_rec[img_idx, MASK_C, GAN_LAYER, :]
-                                    .cpu()
-                                    .detach()
-                                    .numpy(),
-                                    seqs_cpu[img_idx],
-                                    "full",
-                                )
-                                rec_acorr_PAPR = cal_PAPR(rec_acorr)
-                                tmp += rec_acorr_PAPR
-                            self.PAPR_DF_dict[f"C{MASK_C}_L{GAN_LAYER}"] += tmp
-
-                        pred_input = calculatie_correlation_multi_e4s(
-                            style_codes_rec[:, MASK_C_SELECT, GAN_LAYER_SELECT, :],
-                            seqs.detach().cpu().numpy(),
-                            self.opts.peak_threshold,
-                        )
-                        pred_all.extend(pred_input)
 
                     img_rec = self.denorm(img_rec)
                     img_org = self.denorm(img_org)

@@ -290,7 +290,7 @@ class EvalV8Options:
         self.parser.add_argument("--seq_type", default="mls", type=str)
 
         self.parser.add_argument("--exp_dir", default="./experiment", type=str)
-        self.parser.add_argument("--dataset_name", default="cahq", type=str)
+        self.parser.add_argument("--dataset_name", default="ffhq", type=str)
         self.parser.add_argument(
             "--celeba_dataset_root", default="/home/gdata/face/e4s/CelebAMask-HQ", type=str
         )
@@ -337,128 +337,128 @@ class EvalV8Options:
         opts = self.parser.parse_args()
         return opts
     
-class InjectionOptions:
-    def __init__(self):
-        self.parser = ArgumentParser()
-        self.initialize()
+# class InjectionOptions:
+#     def __init__(self):
+#         self.parser = ArgumentParser()
+#         self.initialize()
 
-    def initialize(self):
-        self.parser.add_argument("--seed", default=0, type=int)
-        self.parser.add_argument("--rand_select", default="Yes", type=str)
+#     def initialize(self):
+#         self.parser.add_argument("--seed", default=0, type=int)
+#         self.parser.add_argument("--rand_select", default="Yes", type=str)
 
-        self.parser.add_argument("--max_num", default=500, type=int)
-        self.parser.add_argument("--batch_size", default=1, type=int)
-        self.parser.add_argument("--num_workers", default=8, type=int)
+#         self.parser.add_argument("--max_num", default=500, type=int)
+#         self.parser.add_argument("--batch_size", default=1, type=int)
+#         self.parser.add_argument("--num_workers", default=8, type=int)
 
-        self.parser.add_argument("--seq_weight", default=0.1, type=float)
-        self.parser.add_argument("--idvec_weight", default=1.0, type=float)
+#         self.parser.add_argument("--seq_weight", default=0.1, type=float)
+#         self.parser.add_argument("--idvec_weight", default=1.0, type=float)
 
-        self.parser.add_argument("--facenet_mode", default="arcface", type=str)
-        self.parser.add_argument("--facenet_dir", default="./saved_models", type=str)
+#         self.parser.add_argument("--facenet_mode", default="arcface", type=str)
+#         self.parser.add_argument("--facenet_dir", default="./saved_models", type=str)
 
-        self.parser.add_argument(
-            "--aadblocks_dir",
-            default="./experiment/CelebAHQ_MSE_Noiser_DF/BestResult/AAD_best.pth",
-            type=str,
-        )
-        self.parser.add_argument(
-            "--attencoder_dir",
-            default="./experiment/CelebAHQ_MSE_Noiser_DF/BestResult/Att_best.pth",
-            type=str,
-        )
-        self.parser.add_argument(
-            "--encoder_dir",
-            default="./experiment/CelebAHQ_MSE_Noiser_DF/BestResult/Enc_best.pth",
-            type=str,
-        )
-        self.parser.add_argument(
-            "--decoder_dir",
-            default="./experiment/CelebAHQ_MSE_Noiser_DF/BestResult/Dec_best.pth",
-            type=str,
-        )
-        self.parser.add_argument("--seq_type", default="mls", type=str)
+#         self.parser.add_argument(
+#             "--aadblocks_dir",
+#             default="./experiment/CelebAHQ_MSE_Noiser_DF/BestResult/AAD_best.pth",
+#             type=str,
+#         )
+#         self.parser.add_argument(
+#             "--attencoder_dir",
+#             default="./experiment/CelebAHQ_MSE_Noiser_DF/BestResult/Att_best.pth",
+#             type=str,
+#         )
+#         self.parser.add_argument(
+#             "--encoder_dir",
+#             default="./experiment/CelebAHQ_MSE_Noiser_DF/BestResult/Enc_best.pth",
+#             type=str,
+#         )
+#         self.parser.add_argument(
+#             "--decoder_dir",
+#             default="./experiment/CelebAHQ_MSE_Noiser_DF/BestResult/Dec_best.pth",
+#             type=str,
+#         )
+#         self.parser.add_argument("--seq_type", default="mls", type=str)
 
-        self.parser.add_argument("--exp_dir", default="./experiment", type=str)
-        self.parser.add_argument(
-            "--img_dir", default="/home/jpq/data/CelebA-HQ-img", type=str
-        )  # /home/jpq/data/CelebA-HQ-img  /home/jpq/data/FFHQ-70K
+#         self.parser.add_argument("--exp_dir", default="./experiment", type=str)
+#         self.parser.add_argument(
+#             "--img_dir", default="/home/jpq/data/CelebA-HQ-img", type=str
+#         )  # /home/jpq/data/CelebA-HQ-img  /home/jpq/data/FFHQ-70K
 
-        self.parser.add_argument(
-            "--size",
-            "-s",
-            default=256,
-            type=int,
-            help="The size of the images (images are square so this is height and width).",
-        )
-        self.parser.add_argument(
-            "--message",
-            "-m",
-            default=9,
-            type=int,
-            help="The length in bits of the watermark.",
-        )
-        self.parser.add_argument(
-            "--enable-fp16",
-            dest="enable_fp16",
-            action="store_true",
-            help="Enable mixed-precision training.",
-        )
+#         self.parser.add_argument(
+#             "--size",
+#             "-s",
+#             default=256,
+#             type=int,
+#             help="The size of the images (images are square so this is height and width).",
+#         )
+#         self.parser.add_argument(
+#             "--message",
+#             "-m",
+#             default=9,
+#             type=int,
+#             help="The length in bits of the watermark.",
+#         )
+#         self.parser.add_argument(
+#             "--enable-fp16",
+#             dest="enable_fp16",
+#             action="store_true",
+#             help="Enable mixed-precision training.",
+#         )
 
-    def parse(self):
-        opts = self.parser.parse_args()
-        return opts
+#     def parse(self):
+#         opts = self.parser.parse_args()
+#         return opts
 
 
-class EvaluationOptions:
-    def __init__(self):
-        self.parser = ArgumentParser()
-        self.initialize()
+# class EvaluationOptions:
+#     def __init__(self):
+#         self.parser = ArgumentParser()
+#         self.initialize()
 
-    def initialize(self):
-        self.parser.add_argument("--batch_size", type=int, default=20)
-        self.parser.add_argument("--num_workers", default=6, type=int)
-        self.parser.add_argument("--peak_threshold", type=int, default=5)
-        self.parser.add_argument(
-            "--seq_dir", type=str, default="./experiment/FFHQ-sw(0.1)_st(mls)_arcface"
-        )
-        self.parser.add_argument("--facenet_mode", type=str, default="arcface")
-        self.parser.add_argument("--facenet_dir", type=str, default="./saved_models")
-        self.parser.add_argument(
-            "--imgpos_dir",
-            type=str,
-            default="./experiment/FFHQ-sw(0.1)_st(mls)_arcface/reconstructed",
-        )
-        self.parser.add_argument(
-            "--imgneg_dir",
-            type=str,
-            default="./experiment/FFHQ-sw(0.1)_st(mls)_arcface/reconstructed_DF",
-        )
-        self.parser.add_argument(
-            "--decoder_dir",
-            default="./experiment/CelebAHQ_MSE_Noiser_DF/BestResult/Dec_best.pth",
-            type=str,
-        )
-        self.parser.add_argument(
-            "--size",
-            "-s",
-            default=256,
-            type=int,
-            help="The size of the images (images are square so this is height and width).",
-        )
-        self.parser.add_argument(
-            "--message",
-            "-m",
-            default=9,
-            type=int,
-            help="The length in bits of the watermark.",
-        )
-        self.parser.add_argument(
-            "--enable-fp16",
-            dest="enable_fp16",
-            action="store_true",
-            help="Enable mixed-precision training.",
-        )
+#     def initialize(self):
+#         self.parser.add_argument("--batch_size", type=int, default=20)
+#         self.parser.add_argument("--num_workers", default=6, type=int)
+#         self.parser.add_argument("--peak_threshold", type=int, default=5)
+#         self.parser.add_argument(
+#             "--seq_dir", type=str, default="./experiment/FFHQ-sw(0.1)_st(mls)_arcface"
+#         )
+#         self.parser.add_argument("--facenet_mode", type=str, default="arcface")
+#         self.parser.add_argument("--facenet_dir", type=str, default="./saved_models")
+#         self.parser.add_argument(
+#             "--imgpos_dir",
+#             type=str,
+#             default="./experiment/FFHQ-sw(0.1)_st(mls)_arcface/reconstructed",
+#         )
+#         self.parser.add_argument(
+#             "--imgneg_dir",
+#             type=str,
+#             default="./experiment/FFHQ-sw(0.1)_st(mls)_arcface/reconstructed_DF",
+#         )
+#         self.parser.add_argument(
+#             "--decoder_dir",
+#             default="./experiment/CelebAHQ_MSE_Noiser_DF/BestResult/Dec_best.pth",
+#             type=str,
+#         )
+#         self.parser.add_argument(
+#             "--size",
+#             "-s",
+#             default=256,
+#             type=int,
+#             help="The size of the images (images are square so this is height and width).",
+#         )
+#         self.parser.add_argument(
+#             "--message",
+#             "-m",
+#             default=9,
+#             type=int,
+#             help="The length in bits of the watermark.",
+#         )
+#         self.parser.add_argument(
+#             "--enable-fp16",
+#             dest="enable_fp16",
+#             action="store_true",
+#             help="Enable mixed-precision training.",
+#         )
 
-    def parse(self):
-        opts = self.parser.parse_args()
-        return opts
+#     def parse(self):
+#         opts = self.parser.parse_args()
+#         return opts

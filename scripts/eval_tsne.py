@@ -107,9 +107,10 @@ from os.path import abspath, dirname, join
 
 import numpy as np
 import scipy.sparse as sp
-from proplot import rc
 
-rc["font.family"] = "TeX Gyre Schola"
+# plt.rcParams["font.family"] = "Palatino"
+# plt.rcParams['font.sans-serif'] = ['SimHei'] # 设置默认字体为黑体
+plt.rcParams['axes.unicode_minus'] = False # 正确显示负号
 FILE_DIR = dirname(abspath(__file__))
 DATA_DIR = join(FILE_DIR, "data")
 
@@ -858,7 +859,7 @@ class Inject:
             # 生成2D t-SNE
             tsne_2d = TSNE(n_components=2, random_state=213, 
                     perplexity=45) #min(30, len(region_data)-1)
-            tsne_results_2d = tsne_2d.fit_transform(layer_data)
+            tsne_result_2d = tsne_2d.fit_transform(layer_data)
             
             # 创建DataFrame用于可视化
             tsne_df = pd.DataFrame({
@@ -876,7 +877,7 @@ class Inject:
             plt.legend(title='Facial Region', title_fontsize=16, fontsize=14, bbox_to_anchor=(1.05, 1), loc=2)
             
             # 保存图像
-            plt.savefig(os.path.join(layer_dir, f'layer_{l}_tsne_2d.png'), 
+            plt.savefig(os.path.join(layer_tsne_dir, f'layer_{l}_tsne_2d.png'), 
                            dpi=200, bbox_inches='tight')
             plt.close()
             
@@ -885,8 +886,15 @@ class Inject:
                     perplexity=45) #min(30, len(layer_data)-1)
             tsne_results_3d = tsne_3d.fit_transform(layer_data)
             
+            # 创建3D t-SNE的DataFrame
+            tsne_df_3d = pd.DataFrame({
+                'x': tsne_results_3d[:, 0],
+                'y': tsne_results_3d[:, 1],
+                'z': tsne_results_3d[:, 2],
+                'region': [REGION_NAME_MAPPING.get(i, f'C{i}') for i in range(num_regions)] * len(self.style_codes_data['real'])
+            })
+            
             # 绘制3D t-SNE
-            # ......
             # 3D可视化
             fig = plt.figure(figsize=(12, 10))
             ax = fig.add_subplot(111, projection='3d')
@@ -894,9 +902,9 @@ class Inject:
             # 为每个region绘制点
             for region_idx in range(num_regions):
                 # 筛选当前region的数据点
-                indices = [i for i in range(len(tsne_df)) if tsne_df['region'][i] == REGION_NAME_MAPPING.get(region_idx, f'C{region_idx}')]
+                indices = [i for i in range(len(tsne_df_3d)) if tsne_df_3d['region'][i] == REGION_NAME_MAPPING.get(region_idx, f'C{region_idx}')]
                 if len(indices) > 0:
-                    ax.scatter(tsne_df['x'][indices], tsne_df['y'][indices], tsne_df['z'][indices], 
+                    ax.scatter(tsne_df_3d['x'][indices], tsne_df_3d['y'][indices], tsne_df_3d['z'][indices], 
                               c=[colors[region_idx]], label=REGION_NAME_MAPPING.get(region_idx, f'C{region_idx}'), s=50)
             
             ax.set_title(f'3D t-SNE Visualization for Layer {l}', fontsize=24)
@@ -907,7 +915,7 @@ class Inject:
             ax.grid(False)
             
             # 保存图像
-            plt.savefig(os.path.join(layer_dir, f'layer_{l}_tsne_3d.png'), 
+            plt.savefig(os.path.join(layer_tsne_dir, f'layer_{l}_tsne_3d.png'), 
                            dpi=200, bbox_inches='tight')
             plt.close()
             
@@ -960,7 +968,7 @@ class Inject:
         layer_similarity = np.zeros((num_used_layers, num_used_layers))
         for l1 in range(num_used_layers):
             for l2 in range(num_used_layers):
-                # 计算所有区域的平均余弦相似度
+                # 计算所有区域的平均余 cosine_similarity度
                 similarities = []
                 for c in range(num_regions):
                     vec1 = region_layer_means[c, l1, :]
@@ -1319,7 +1327,7 @@ class Inject:
                     # img_org = self.denorm(img_org)
                     img_rec_df = self.denorm(img_rec_df)
 
-                for i in range(len(input_batch)):
+                for i in range(len(img_rec)):
                     '''这里保存一下注入的seqs和对应图像名dict'''
                     
                    
@@ -1420,53 +1428,7 @@ class Inject:
                     tn, fp, fn, tp
                 )
             )
-            
-
-            # BER_list = np.array(BER_list)
-
-            # normal_pers_BER = BER_list[np.argwhere(np.array(label_all) == 1)]
-            # DF_pers_BER = BER_list[np.argwhere(np.array(label_all) == 0)]
-            # avg_BER = BER_list.mean()
-            # avg_normal_pers_BER = normal_pers_BER.mean()
-            # avg_DF_pers_BER = DF_pers_BER.mean()
-            # logging.info("[*]avgBER: {:.4f}, avgNormalBER: {:.4f}, avgDfBER: {:.4f},".format(avg_BER, avg_normal_pers_BER, avg_DF_pers_BER))
-
-            # BER_semi_list = np.array(BER_semi_list)
-            # normal_pers_semi_BER = BER_semi_list[np.argwhere(np.array(label_all) == 1)]
-            # DF_pers_semi_BER = BER_semi_list[np.argwhere(np.array(label_all) == 0)]
-            # avg_BER_semi = BER_semi_list.mean()
-            # avg_normal_pers_semi_BER = normal_pers_semi_BER.mean()
-            # avg_DF_pers_semi_BER = DF_pers_semi_BER.mean()
-            # logging.info("[*]avgSemiBER: {:.4f}, avgNormalSemiBER: {:.4f}, avgDfSemiBER: {:.4f},".format(avg_BER_semi, avg_normal_pers_semi_BER, avg_DF_pers_semi_BER))
-
-            # logging.info("[*]Accuracy: {:.4f}, Precision: {:.4f}, Recall: {:.4f}, F1_Score: {:.4f}".format(accuracy, precision, recall, f1_score))
-            # logging.info("[*]True Negative: {}, False Positive: {}, False Negative: {}, True Positive: {}".format(tn, fp, fn, tp))
-
-            # tpr = tp/(tp+fn)
-            # fpr = fp/(fp+tn)
-            # logging.info("[*]True Positive Rate: {:.4f}, False Positive Rate: {:.4f}".format(tpr, fpr))
-
-            # '''START SELF CORR'''
-            # # accuracy, precision, recall, f1_score, tn, fp, fn, tp = evaluation(label_all, pred_self_corr_all)
-            # # logging.info('[*]SELF CORR RESULTS:')
-            # # logging.info("[*]Accuracy: {:.4f}, Precision: {:.4f}, Recall: {:.4f}, F1_Score: {:.4f}".format(accuracy, precision, recall, f1_score))
-            # # logging.info("[*]True Negative: {}, False Positive: {}, False Negative: {}, True Positive: {}".format(tn, fp, fn, tp))
-
-            # # tpr = tp/(tp+fn)
-            # # fpr = fp/(fp+tn)
-            # # logging.info("[*]True Positive Rate: {:.4f}, False Positive Rate: {:.4f}".format(tpr, fpr))
-
-            # '''START SEMI CORR'''
-            # accuracy, precision, recall, f1_score, tn, fp, fn, tp = evaluation(label_all, pred_semi_corr_all)
-            # logging.info('[*]SEMI CORR RESULTS:')
-            # logging.info("[*]Accuracy: {:.4f}, Precision: {:.4f}, Recall: {:.4f}, F1_Score: {:.4f}".format(accuracy, precision, recall, f1_score))
-            # logging.info("[*]True Negative: {}, False Positive: {}, False Negative: {}, True Positive: {}".format(tn, fp, fn, tp))
-
-            # tpr = tp/(tp+fn)
-            # fpr = fp/(fp+tn)
-            # logging.info("[*]True Positive Rate: {:.4f}, False Positive Rate: {:.4f}".format(tpr, fpr))
-
-
+        
 def main():
     opts = EvalV8Options().parse()
     """添加SimSwap的伪造模型"""
