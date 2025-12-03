@@ -1147,7 +1147,7 @@ def main():
     )
     if opts.local_rank == 0:
         os.makedirs(output_dir, exist_ok=True)
-        shutil.copyfile("./scripts/trainingV8_e4s_AnyLayer_TF32_Residual_DirectPAPR_ROBUST.py", os.path.join(output_dir,"Train_screenshot.py")) 
+        shutil.copyfile("./scripts/train_DirectPAPR_ROBUST-TF32.py", os.path.join(output_dir,"Train_screenshot.py")) 
         logging.basicConfig(
             level=logging.INFO,
             format="%(message)s",
@@ -1183,8 +1183,8 @@ def main():
         # "Contrast()",
         # "Saturation()",
         # "Hue()",
-        "SaltPepper()",
-        "GaussianNoise()",
+        # "SaltPepper()",
+        # "GaussianNoise()",
     ]
     # 250106 开始加入鲁棒性
     # noise_config = [

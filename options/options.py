@@ -17,11 +17,11 @@ class TrainingOptions:
             help="Noise layers configuration. Use quotes when specifying configuration, e.g. 'cropout((0.55, 0.6), (0.55, 0.6))'",
         )
         self.parser.add_argument("--des", default="Default", type=str)
-        self.parser.add_argument("--max_epoch", default=80, type=int)
+        self.parser.add_argument("--max_epoch", default=40, type=int)
         self.parser.add_argument("--display_num", default=2, type=int)
-        self.parser.add_argument("--batch_size", default=16, type=int)
+        self.parser.add_argument("--batch_size", default=2, type=int)
         self.parser.add_argument("--test_batch_size", default=4, type=int)
-        self.parser.add_argument("--num_workers", default=10, type=int)
+        self.parser.add_argument("--num_workers", default=8, type=int)
         self.parser.add_argument("--max_train_iters", default=99999, type=int)
         self.parser.add_argument("--max_val_iters", default=999, type=int)
         self.parser.add_argument("--save_interval_epoch", default=50, type=int)
@@ -47,7 +47,7 @@ class TrainingOptions:
         #     "--discriminator_dir", default="./saved_models", type=str
         # )
 
-        self.parser.add_argument("--lr", default=1e-4, type=float)
+        self.parser.add_argument("--lr", default=1e-5, type=float)
         # self.parser.add_argument("--start_lr", default=1e-6, type=float)
         # self.parser.add_argument("--warm_step", default=3, type=int)
         # self.parser.add_argument("--min_lr", default=1e-6, type=float)
